@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PetScript — Clinic Issue Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; }
+
+  header { background: #004B8D; color: white; padding: 20px 28px; display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 20px; font-weight: 700; }
+  header p { font-size: 13px; opacity: 0.75; margin-top: 3px; }
+  .badge { background: rgba(255,255,255,0.2); border-radius: 20px; padding: 4px 14px; font-size: 13px; font-weight: 600; }
+
+  .summary-bar { background: white; padding: 14px 28px; border-bottom: 1px solid #e0e4ea; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .cat-chip { border-radius: 20px; padding: 5px 14px; font-size: 12px; font-weight: 600; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+  .cat-chip.active { border-color: #004B8D; }
+  .cat-chip span { display: inline-block; background: rgba(0,0,0,0.15); border-radius: 10px; padding: 0px 7px; font-size: 11px; margin-left: 5px; }
+
+  .controls { background: white; border-bottom: 1px solid #e0e4ea; padding: 12px 28px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .search-box { flex: 1; min-width: 200px; padding: 8px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; }
+  .search-box:focus { border-color: #004B8D; box-shadow: 0 0 0 3px rgba(0,75,141,0.1); }
+  label { font-size: 13px; color: #555; font-weight: 500; }
+  select { padding: 7px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; outline: none; cursor: pointer; }
+
+  .result-count { padding: 8px 28px; font-size: 13px; color: #666; }
+
+  .table-wrap { padding: 0 28px 40px; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); font-size: 13px; }
+  thead tr { background: #f8f9fb; }
+  th { padding: 11px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #666; border-bottom: 1px solid #e8ebef; }
+  td { padding: 10px 14px; border-bottom: 1px solid #f0f2f5; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f7f9fc; }
+
+  .clinic-name { font-weight: 600; color: #004B8D; margin-bottom: 2px; }
+  .clinic-email { font-size: 11px; color: #888; }
+
+  .cat-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 5px; }
+  .tag { border-radius: 12px; padding: 2px 9px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+
+  .snippet { font-size: 12px; color: #444; line-height: 1.5; padding: 5px 8px; background: #f8f9fb; border-left: 2px solid #d1d5db; border-radius: 0 4px 4px 0; margin-top: 4px; }
+  .snippet + .snippet { margin-top: 3px; }
+
+  .hidden { display: none !important; }
+
+  /* category colors */
+  .c0 { background: #fef3c7; color: #92400e; }
+  .c1 { background: #fee2e2; color: #991b1b; }
+  .c2 { background: #fde8d8; color: #9a3412; }
+  .c3 { background: #dbeafe; color: #1e3a8a; }
+  .c4 { background: #ede9fe; color: #5b21b6; }
+  .c5 { background: #e0f2fe; color: #075985; }
+  .c6 { background: #d1fae5; color: #065f46; }
+  .c7 { background: #f3f4f6; color: #374151; }
+  .c8 { background: #fce7f3; color: #831843; }
+
+  .chip0 { background: #fef3c7; color: #92400e; }
+  .chip1 { background: #fee2e2; color: #991b1b; }
+  .chip2 { background: #fde8d8; color: #9a3412; }
+  .chip3 { background: #dbeafe; color: #1e3a8a; }
+  .chip4 { background: #ede9fe; color: #5b21b6; }
+  .chip5 { background: #e0f2fe; color: #075985; }
+  .chip6 { background: #d1fae5; color: #065f46; }
+  .chip7 { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+  .chip8 { background: #fce7f3; color: #831843; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>PetScript — Clinic Issue Tracker</h1>
+    <p>Customer notes review · Flagged accounts by issue type</p>
+  </div>
+  <div class="badge" id="visibleCount">873 clinics</div>
+</header>
+
+<div class="summary-bar" id="summaryBar">
+  <label style="margin-right:4px;">Filter:</label>
+  <!-- chips injected by JS -->
+</div>
+
+<div class="controls">
+  <input class="search-box" type="text" id="searchBox" placeholder="Search clinic name or email…">
+  <label for="sortSelect">Sort by:</label>
+  <select id="sortSelect">
+    <option value="issues">Most issue types</option>
+    <option value="alpha">Clinic A–Z</option>
+  </select>
+</div>
+
+<div class="result-count" id="resultCount"></div>
+
+<div class="table-wrap">
+  <table id="mainTable">
+    <thead>
+      <tr>
+        <th style="width:230px">Clinic</th>
+        <th>Issues Found in Notes</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<script>
+const CATS = [
+  'Wrong Item Sent',
+  'Missing / Shorted',
+  'Damaged / Broken',
+  'Replacement / Call Tag',
+  'Order Delay / Not Shipped',
+  'Shipped to Wrong Address',
+  'Credit / Refund',
+  'Cancelled Order',
+  'Pricing Overcharge',
+];
+
+const COUNTS = {
+  'Wrong Item Sent': 163,
+  'Missing / Shorted': 55,
+  'Damaged / Broken': 55,
+  'Replacement / Call Tag': 290,
+  'Order Delay / Not Shipped': 62,
+  'Shipped to Wrong Address': 27,
+  'Credit / Refund': 205,
+  'Cancelled Order': 321,
+  'Pricing Overcharge': 9
+};
+
+// Inline the data (first 873 clinics — full set)
+const RAW = [{"clinic":"TILLER VETERINARY CLINIC","email":"tillervetclinic@gmail.com","issues":{"Wrong Item Sent":["9/6/2023 pimo 5mg quads I sent by mistake were returned to us today"]}},{"clinic":"WILLS POINT VETERINARY CLINIC","email":"WILLSPOINTVET@YAHOO.COM","issues":{"Missing / Shorted":["Dan called said EKT missing from INV-47394, Replacing - SMP","Shorted 1 EKT from 11.27.23 order."],"Damaged / Broken":["10/20/23 sending 1 extra 15ml ekt 1 from 10/10 order had busted."],"Replacement / Call Tag":["Dan called said EKT missing from INV-47394, Replacing - SMP"]}},{"clinic":"Vivian Animal Hospital*","email":"meyerdvm@aol.com","issues":{"Wrong Item Sent":["Returning Ponazuril 150mg/mL that was sent erroneously."],"Replacement / Call Tag":["10/2/24 - SENT CALL TAG FOR INV 61908."],"Credit / Refund":["Giving 50% credit on INV-65506 - SMP"]}},{"clinic":"Pallone Veterinary Hospital*","email":"pallonevet@gmail.com","issues":{"Missing / Shorted":["SE 10/23/23 clinic did not receive INV-41622"],"Damaged / Broken":["9/5/25 per JP Tubes were open during shipping."],"Replacement / Call Tag":["From Pallone vet replacing enro from inv-105894 picture attached","Pallone vet - resend 3 tubes"],"Cancelled Order":["11/18/24 - Jonathan called to cancel INV 66123."]}},{"clinic":"QUITMAN ANIMAL CLINIC*","email":"quitmananimalclinic@gmail.com","issues":{"Wrong Item Sent":["7.6.23 Per Nick replacing 1 of 3 syringes of F/P/P 68/68/68 due to put in dosing syringe and complaint of customer."],"Replacement / Call Tag":["Per Nick replacing 1 of 3 syringes of F/P/P 68/68/68"]}},{"clinic":"PRATT VETERINARY SERVICES*","email":"prattkyle@yahoo.com","issues":{"Missing / Shorted":["Per Tracy missing 1 btl of dex/chlor from Inv-46584 Sending another - SMP"],"Damaged / Broken":["1 btl dex/chlor received broken."]}},{"clinic":"PONDER VETERINARY CLINIC*","email":"admin@pondervet.com","issues":{"Wrong Item Sent":["5/21/26 - Emily @ clinic called. INV 110482 was for 2 x 400 ct of pimo 5mg tabs. They received 2 x 200ct bottles."],"Missing / Shorted":["06/20/25 Sara phoned did not receive pimobendan was reorded and sent out"],"Damaged / Broken":["Per Sara received Inv-44502 today with 1 broken btl of yohimbine"],"Replacement / Call Tag":["Will write replacement order once photos are posted.","6/20/25 - Call tag sent for INV 82299, returning 2 btls of Ponazuril - 3 sent & only wanted one."]}},{"clinic":"Pineville Pet Hospital*","email":"PinevillePetHospital@gmail.com","issues":{"Wrong Item Sent":["4/8/26 - Clinic accidentally ordered doxycycline 400mg CAPSULES instead of Quad tabs on PS Website."],"Replacement / Call Tag":["Sending call tag and sending order again."]}},{"clinic":"BROWN COUNTY ANIMAL HOSPITAL","email":"office@bcanimalclinc.com","issues":{"Wrong Item Sent":["Call tag sent to return wrong strength AKT from Inv. 64125."],"Damaged / Broken":["Brenda is returning 3ml akt, was supposed to be 15ml size."],"Replacement / Call Tag":["Call tag has been sent."],"Credit / Refund":["12/10/24 Credited account for INV-64125 - SMP"]}},{"clinic":"14th Street Veterinary Clinic*","email":"jr14thstreetveterinarian@yahoo.com","issues":{"Order Delay / Not Shipped":["12/16/24 Invoice # 65842 had 12 50ml methylpred injections on the back of the invoice that was looked over. It was never put into Best RX and never shipped out.","They had everything from the front of the invoice but it was overlooked on the back of the invoice."]}},{"clinic":"GREGORY ANIMAL CLINIC, INC.","email":"gac@gwtc.net","issues":{"Wrong Item Sent":["1/10/25 Polly w/ clinic called said they rec'd Triple 68mg 50ct should have been Triple 136mg 150ct"],"Replacement / Call Tag":["2/26/24 sending call tag for invoice 48374 -LN"]}},{"clinic":"Aardvark Animal Clinic*","email":"aardvarkanimalclinic@gmail.com","issues":{"Wrong Item Sent":["Clinic ordered wrong item — Canceled and refunded online order PS10450."],"Damaged / Broken":["8/12/25 - Clinic called and ordered Cimetidine on INV 86556, invoice was written for Famotidine. Sent call tag to return Famotidine."],"Replacement / Call Tag":["Sent call tag to return Famotidine."]}},{"clinic":"EMORY VETERINARY CLINIC*","email":"willisdanaevc@gmail.com","issues":{"Wrong Item Sent":["INV-93017 is a shopify order that needs to be edited to 2x60ml instead of 2x1000ml."],"Credit / Refund":["i refunded it in Zoho"]}},{"clinic":"Kaufman Veterinary Center*","email":"kaufmanvet@yahoo.com","issues":{"Wrong Item Sent":["05/15/25 - DR Costello called and said they received 15ml instead of the 3ml EKT - resending order for 3ml for 50% off","8/21/24 Dr Costello called said they rec'd ointment should have been powder NTT replacing."],"Damaged / Broken":["EKT syringe plunger malfunction issues — 10/14/25"],"Replacement / Call Tag":["Sent call tag to return to us."],"Pricing Overcharge":["1/30/26 Dr called about cyclo overcharge. I let him know we will credit him the difference","Dr said we needed to make a note of this due to being overcharged last time for ekt."]}},{"clinic":"Kleinpeter Equine Veterinary Services","email":"CAROLINE@KLEINPETEREQUINE.COM","issues":{"Missing / Shorted":["10/12/23 Per Caroline she said they never received package from 9/14/23 inv-40748."],"Replacement / Call Tag":["10/12/23 replacing Inv-40748"]}},{"clinic":"SOUTH PINE ANIMAL HOSPITAL*","email":"aggievet01@gmail.com","issues":{"Missing / Shorted":["8/29/25 - Liz called to inquire on missing online order PS9449, order was missed and never entered into Zoho for processing."],"Order Delay / Not Shipped":["8/29/25 - order was missed and never entered into Zoho for processing."]}},{"clinic":"LAKE PALESTINE ANIMAL HOSPITAL*","email":"lpah876@gmail.com","issues":{"Missing / Shorted":["4/19/22 Short 1 pkt trimeth/sulfa from last order."],"Credit / Refund":["7/26/24 Laura sent me an email after being charged $12.00 on shipping. I let her know we will apply credit."]}},{"clinic":"Vivian Animal Hospital*","email":"meyerdvm@aol.com","issues":{"Wrong Item Sent":["On order from 9/16/24 Dr wanted Ponazuril 50mg/1ml 240ml. Per Nick we are sending him a 50mg/ml 240ml and credit him the difference."],"Replacement / Call Tag":["10/2/24 - SENT CALL TAG FOR INV 61908. Returning Ponazuril 150mg/mL that was sent erroneously."]}},{"clinic":"Hospital De Animales Perla Del Sur*","email":"acevedojoanne@icloud.com","issues":{"Damaged / Broken":["6.19.23 Per Jay replacing damaged pimo 2.5 t-tabs"],"Replacement / Call Tag":["Items were returned, rechecked and shipped."]}},{"clinic":"BRIGHT STAR VETERINARY CLINIC*","email":"Brightstarvet.clinic@live.com","issues":{"Shipped to Wrong Address":["6/9/2025 - INV 80582 was sent to wrong recipient (Wendy Firestone - PetParent). Sent call tag to Wendy to return items. Will resend INV 80582 to clinic today."],"Replacement / Call Tag":["Sent call tag to Wendy to return items. Will resend INV 80582 to clinic today."]}},{"clinic":"Ada Veterinary Clinic*","email":"adaveterinaryclinic@yahoo.com","issues":{"Order Delay / Not Shipped":["02/25/26 Clinic is fine with the short-dated Cyclosporine Solution in online order PS12322, INV-103371"]}},{"clinic":"Eco Deco Pet Hospital","email":"info@ecodecopethospital.com","issues":{"Wrong Item Sent":["5/19/26 replacing should have been Bupren oral liquid not transdermal gel.","Emailed call tag for wrong form of buprenorphine gel."],"Damaged / Broken":["8/30/24 doxy susp from INV-60414 leaked during shipping, replacing free of charge."],"Replacement / Call Tag":["5/20/26 - sent replacement inv UPS Next Day.","Emailed call tag for wrong form of buprenorphine gel."],"Credit / Refund":["Ordered Ursodiol online by mistake. Nick said could not return, but to make customer happy gave 15% of this order."]}},{"clinic":"NORTHLAKE PET HOSPITAL*","email":"wendy@northlakepethospital.com","issues":{"Shipped to Wrong Address":["3/27/25 order#7417 INV-75189 was shipped to Ponder vet but to their old address resending to correct location."]}},{"clinic":"Clinica Veterinaria Mi Mascota*","email":"hpm.metro@gmail.com","issues":{"Replacement / Call Tag":["3/12/26 Sending call tag for invoice 103878 meds that Dr did not authorize to order"],"Cancelled Order":["10/29/25 Order Cancellation — placed in error."]}},{"clinic":"P.E.T.S. Clinic of Wichita Falls*","email":"petsmgmt2025@gmail.com","issues":{"Missing / Shorted":["02/05/26 Clinic called stating she ordered Gaba/Traz on Jan 2, 2026 and never received the order."],"Order Delay / Not Shipped":["3/24/26 called clinic spoke with Judy about GS maybe a delay"]}},{"clinic":"Good Hope Veterinary Hospital","email":"GHVHFRONTDESK@GMAIL.COM","issues":{"Damaged / Broken":["11/25 Britney said all fluoxetine pens have been separating credit last 2 sent and $50 credit on future orders"],"Replacement / Call Tag":["10/15/25 - Sent call tag to return 2 fluoxetine click pens, INV 91529.","1/3/25 Britney called in to get replacement for Fluoxetine 100mg/1ml trans gel (5mg per click) - 9ml"],"Credit / Refund":["11/7/25 credit 100% fluoxetine pens last 2 from 9/30/25 order INV-91529"]}},{"clinic":"ALMA ANIMAL HOSPITAL","email":"cogs@svp.vet","issues":{"Missing / Shorted":["Per Chris - Missing 1 btl of apomorphine from INV-44146. Replacing it."],"Replacement / Call Tag":["Replacing it - SMP"]}},{"clinic":"Ponchatoula Animal Hospital*","email":"ponchatoulaanimalhospital@gmail.com","issues":{"Damaged / Broken":["10/27/25 Per Madelyn Enro leaked INV-93348, replacing per Wade"],"Replacement / Call Tag":["Replacing order today.","Per Madelyn Enro leaked INV-93348, replacing per Wade"]}},{"clinic":"ALLDREDGE VETERINARY HOSPITAL*","email":"allvet2001@aol.com","issues":{"Damaged / Broken":["7/22/24 INV-54901 NOTED TO REFUND - CHEWS WERE MOLDY"],"Credit / Refund":["7/22/24 INV-54901 NOTED TO REFUND - CHEWS WERE MOLDY"]}},{"clinic":"MedieX Global Inc.","email":"mediexinc@gmail.com","issues":{"Damaged / Broken":["3/17/26 Per Wade we are replacing 7 acepromazine from inv. 104405 that were damaged during shipment"],"Replacement / Call Tag":["3/17/26 Per Wade we are replacing 7 acepromazine from inv. 104405"]}},{"clinic":"ROCKWALL VETERINARY HOSPITAL","email":"rockvet1@gmail.com","issues":{"Wrong Item Sent":["9/10/24 Sent .5mg DES caps instead of 1mg."]}},{"clinic":"SOUTHWEST VETERINARY HOSPITAL*","email":"swvhpc@yahoo.com","issues":{"Wrong Item Sent":["1/19/24 emailed return label for INV-46594 invoiced pimo should have been doxy, now correctly invoiced"],"Replacement / Call Tag":["8/15/2025 - Call tag sent to return INV 87111."]}},{"clinic":"Rock Knoll Animal Hospital*","email":"rockknollanimalhospital@gmail.com","issues":{"Wrong Item Sent":["7/17/25 - Clinic called and rec'd order for INV 84663, Dr. Macy Tullos instead of their order for INV 84629 (Doxy 300mg tabs x 600 ct). Sending call tag to clinic.","05/19/25 replacing inv. 78226 sent out the wrong strength, wanted Sildenafil Citrate 20mg/1ml not 2mg/1ml"],"Replacement / Call Tag":["Sending call tag to clinic to return wrong order"]}},{"clinic":"Fairland Veterinary Hospital","email":"drblalock.fvh@gmail.com","issues":{"Wrong Item Sent":["6/30/25 clinic ordered Tacrolimus/Cyclosporine - 0.03%/2% and should have been 0.02%/2% - INV83265"]}},{"clinic":"McClendon Veterinary Services*","email":"srmdvm@gmail.com","issues":{"Wrong Item Sent":["3/11/25 Per Samantha w/ clinic called to let us know she rec'd Prazi 100mg/inj and should have been Praz 100mg cap 30ct for INV-74162"],"Damaged / Broken":["SAM CALLED 6/12/15, IVERMECTIN LEAKED IN LAST SHIPMENT, REPLACING THIS TIME ONLY FREE OF CHARGE"]}},{"clinic":"Tulsa SPCA","email":"clinicmanager@tulsaspca.org","issues":{"Shipped to Wrong Address":["3/30/26 - Rec'd email from clinic that INV 105602 was delivered to Bristow, OK instead of Tulsa, OK."],"Replacement / Call Tag":["Will write a new Invoice to replace gaba suspension - the clinic is out of it now."]}},{"clinic":"MAIN STREET VETERINARY CLINIC*","email":"msvcinvoices@gmail.com","issues":{"Order Delay / Not Shipped":["7/24/25 Jennifer sending a call tag for cyclo - Taylor called looking for cyclo from 7/10, it was finally delivered on 7/24/25."],"Credit / Refund":["credit clinic for overcharge on 5/9/25 cyclo 2% 10ml x 10"]}},{"clinic":"KINGDOM VETERINARY CLINIC*","email":"payables@heartlandvetpartners.com","issues":{"Damaged / Broken":["12/8/25 - Received order with 1 broken topi click pen from INV-96028, replacing with INV-97029."],"Replacement / Call Tag":["4/23/25 - Call tag sent to info@kingdomvet.com for INV 76654 - returning 4 methimazole - only wanted 2 count, not 6."]}},{"clinic":"AMARILLO VETERINARY CLINIC","email":"amarillovets@gmail.com","issues":{"Missing / Shorted":["10/15/25 Karen called missing 4 Bup 0.3mg tg 1ml syringes, sending them today"],"Credit / Refund":["We are going to credit the account for the 12 1ml syringes and place another order using that credit."]}},{"clinic":"Pittsburg Veterinary Clinic, PC","email":"pittsburgvetclinic@gmail.com","issues":{"Damaged / Broken":["7/8/25 - Prednisolone arrived damaged from INV-83002, shipping replacement with new order of pimobendan."]}},{"clinic":"Canyon Road Animal Hospital*","email":"crahbusiness@gmail.com","issues":{"Wrong Item Sent":["3/27/26 Emily called about pimo 7.5 labeled as methimazole gel. Sending call tag today for return."],"Replacement / Call Tag":["3/27/26 Sent call tag.","3/31/26 Refunded INV-105880 to acct."]}},{"clinic":"ANIMAL HOSPITAL OF DENISON","email":"Michelle.stone@nva.com","issues":{"Shipped to Wrong Address":["9/25/24 Pimobendan from invoice 62079 was sent to the wrong clinic"],"Credit / Refund":["7/19/23, credit clinic for glipizide 1mg/1ml 30ml, invoice # 37019 leaked during shipping"]}},{"clinic":"Kansas State University*","email":"dispensaryqb@vet.k-state.edu","issues":{"Missing / Shorted":["9/25/25 We are sending replacement bottle of acepromazine inj 30ml. It was short several ml's"]}},{"clinic":"Pearson Animal Clinic","email":"Pearsonanimalclinic@gmail.com","issues":{"Missing / Shorted":["4/17/25 JP - Hey we shorted Pearson animal Clinic a keto - they ordered 3 got 1... replacing 2 INV-76397."]}},{"clinic":"Chihuahua Rescue & Transport*","email":"treasurer@chihuahua-rescue.com","issues":{"Shipped to Wrong Address":["11/1/24 - Per Heather, Gabapentin from INV 63674 was accidently sent to the wrong address."],"Missing / Shorted":["order#1688 never received Fenben letter called Heather several times"]}},{"clinic":"Animal Health and Medical Center*","email":"ahmcvet_tina@yahoo.com","issues":{"Missing / Shorted":["2/11/26 - Clinic is missing Triamcinolone injectable from order, INV-102014"]}},{"clinic":"BAYLOR ANIMAL CLINIC*","email":"bayloranimalclinic@gmail.com","issues":{"Wrong Item Sent":["10/27/23 INV-42711 I order the wrong size for EKT and Akt 3ml clinic wanted 15ml"],"Damaged / Broken":["Per Trey received INV-46379 with 2 broken 15ml EKT per pic in uploads."]}},{"clinic":"RODEO DRIVE VETERINARY HOSPITAL*","email":"rdvh87@yahoo.com","issues":{"Missing / Shorted":["7/22/25 - INV 85287 written to replace order missing in transit (INV 84708). Emailed FedEx Rep to find missing box."]}},{"clinic":"CORNERSTONE ANIMAL CLINIC","email":"cornerstoneac@yourvetdoc.com","issues":{"Missing / Shorted":["1/7/25 Heather called to state she only received 12 of the 48 Methimazole transdermal gels she ordered."]}},{"clinic":"KING ANIMAL CLINIC*","email":"info@kingvet.com","issues":{"Missing / Shorted":["2/17/26 - Filed claim with UPS to reimburse package not received by clinic. Resending today."],"Credit / Refund":["Per Wade we will not refund. Beth is not happy."]}},{"clinic":"Mexia Veterinary Clinic *","email":"mexiavetclinic@gmail.com","issues":{"Damaged / Broken":["Per Belinda INV-55988, Bottle of Enro 68mg damaged in shipping. Replacing the 15ml btl."]}},{"clinic":"EAST LAKE ANIMAL CLINIC","email":"EastLakeAnimalClinic@nva.com","issues":{"Damaged / Broken":["Top of pen broken — Reason for return: Product is damaged, but the packaging is undamaged"]}},{"clinic":"BAYLOR ANIMAL CLINIC*","email":"bayloranimalclinic@gmail.com","issues":{"Wrong Item Sent":["10/27/23 INV-42711 I ordered the wrong size for EKT and AKT 3ml, clinic wanted 15ml"]}},{"clinic":"NORTHSIDE VETERINARY CLINIC*","email":"nsbccallphone@gmail.com","issues":{"Missing / Shorted":["Per Nick replacing shortage from last order of M/P/P 4-10-23"]}},{"clinic":"LAFAYETTEVETERINARY CARE CENTER","email":"inventory@lafayettevets.com","issues":{"Wrong Item Sent":["1/23/25 Christin called in to tell us that 20 5ml cyclo and tacro solutions were received in the wrong strength. We are sending a call tag and redoing the correct strength."],"Order Delay / Not Shipped":["10/5/23 clinic paid for overnight shipping but I did not put on invoice 41699 so it was not shipped overnight it was shipped ground."]}},{"clinic":"Harrison Animal Clinic*","email":"harrisonanimalclinic@hotmail.com","issues":{"Damaged / Broken":["Also she said the 30ml has leaked in bag n got all over so they can't salvage it."],"Replacement / Call Tag":["4/16/25 Per Wade faulty product replace free INV-75920"]}},{"clinic":"HOPKINS COUNTY VETERINARY CLINIC*","email":"hcvc@hcvconline.com","issues":{"Damaged / Broken":["6/3/26 replacing methimazole gel inv # 110986 product keeps oozing out. Ok Per Wade"]}},{"clinic":"NORTHSHORE VETERINARY CLINIC","email":"northshorevet@bill.com","issues":{"Order Delay / Not Shipped":["3/31/26 Jennifer sending call tag today - Shannon called about Pimo 3.75mg from 3/27/26 label reads BUD as 4/09/2026 - we are sending a new order."]}},{"clinic":"VETERINARIA REXVILLE","email":"kecaraballo@veterinariarexville.org","issues":{"Damaged / Broken":["the doctor is upset because he says it came very very hot and he doesn't feel safe giving it to his patient."],"Credit / Refund":["we will credit INV-63900"]}},{"clinic":"Camas Washougal Animal Hospital","email":"cwanimalhospital@yahoo.com","issues":{"Damaged / Broken":["3/11/26 - Clinic called and is having the same problem as in January with another Methimazole 50mg/1mL click pen. A client returned pen to clinic with some coming out as liquid and some coming out as chunks."]}},{"clinic":"Animal Medical Clinic*","email":"Animalmedclinic2@gmail.com","issues":{"Shipped to Wrong Address":["8/27/25 - INV 88233, was sent to wrong clinic."]}},{"clinic":"LONE STAR ANIMAL HOSPITAL*","email":"contact@lonestaranimalhospital.com","issues":{"Missing / Shorted":["missing tips per Amy  - SMP Holly"],"Pricing Overcharge":["Per Amy overcharged for cyclo on last invoice, so just charged the diff on 1 btl on this invoice"]}},{"clinic":"EASTEX VETERINARY CLINIC","email":"evc.bmt@gmail.com","issues":{"Wrong Item Sent":["07/01/25 - Per Carrie, ordered 3mL EKT instead of 15mL EKT on INV 83081. Per Wade OK to send call tag to return 12ct 3mL EKT."],"Order Delay / Not Shipped":["Spoke with Carrie about Doxy promo (which wasn't applied to her order) and delay in order."]}},{"clinic":"ATX ANIMAL CLINIC*","email":"info@atxanimalclinic.com","issues":{"Missing / Shorted":["we've been missing flavors on alot of orders."],"Credit / Refund":["Giving credit and sending out new inv."]}},{"clinic":"Animal Clinic of Athens","email":"acathens@yourvetdoc.com","issues":{"Shipped to Wrong Address":["8/22/25 - INV 87666 accidentally sent to Dr. Curtis today."]}},{"clinic":"BRAZORIA VETERINARY CLINIC*","email":"bvet@brazoriainet.com","issues":{"Missing / Shorted":["Per Susan, missing a btl of methylprednisolone 50mg/ml 50ml","Jaime replacing missing methylprednisolone 50mg/ml"],"Order Delay / Not Shipped":["3/5/26 called clinic spoke with Aubrey she knows about the delay and about the BUD for methy inj"]}},{"clinic":"Animal Crossing Veterinary Hospital","email":"animalcrossingvh@gmail.com","issues":{"Missing / Shorted":["He ordered 500ct Pimo 10mg tabs, only received 1 100ct bottle."]}},{"clinic":"HARRIS VETERINARY HOSPITAL*","email":"harrisveterinary@yahoo.com","issues":{"Order Delay / Not Shipped":["03/27/26 Clinic is aware of the shipping delay for Apomorphine Order, INV-105917"]}},{"clinic":"Purrfurred Veterinary Care","email":"christie@pfvetcare.com","issues":{"Credit / Refund":["5/16/25 Inv-79764 Miconazole/Dexa/Amikacin otic 30ml was taken off order and refunded the $64.49 online."]}},{"clinic":"Acadia Animal Medical Center, LLC*","email":"Aamcvets@gmail.com","issues":{"Wrong Item Sent":["Sent call tag to return item sent incorrectly."],"Credit / Refund":["9/8/25 I refunded Molnupiravir online and edit invoice."],"Cancelled Order":["9/8/25 Per Wade Molnupiravir is on backorder."]}},{"clinic":"NVA Animal Medical Center","email":"Jeananne.ferguson@nva.com","issues":{"Order Delay / Not Shipped":["6/8/26 called clinic to let them know about the delay on metro"]}},{"clinic":"HPM-METRO, LLC dba Hospital Para Mascotas","email":"hpm.metro2022@gmail.com","issues":{"Damaged / Broken":["6.2.26 Clinic called AKT was short dated, replacing per Wade"]}},{"clinic":"Long Lake Veterinary Clinic*","email":"mco1030@aol.com","issues":{"Wrong Item Sent":["9.28.23 Per MC received 10 instead of 100 methimazole trans gels."]}},{"clinic":"TRINITY ANIMAL CLINIC*","email":"PCROWL45@YAHOO.COM","issues":{"Replacement / Call Tag":["6/17/25 - Sent call tag to trinityanimalclinic@yahoo.com"],"Credit / Refund":["will credit account once product is received"]}},{"clinic":"Primary Care Animal Hospital - Bixby Knolls*","email":"ammi@primaryvetcare.com","issues":{"Missing / Shorted":["Clinic states they did not receive the 5-30ml bottles of pimo that they ordered."]}},{"clinic":"ANIMAL HOSPITAL*","email":"animalhospital75426@gmail.com","issues":{"Damaged / Broken":["4 of the 6 30mL bottles of Chlorpromazine leaked into the bag"],"Replacement / Call Tag":["Replacing 4 bottles."]}},{"clinic":"Ark Animal Hospital","email":"autumn.starkweather@mvetpartners.com","issues":{"Missing / Shorted":["02/11/25 Riley called in and said they never received inv."]}},{"clinic":"Animal Hospital of West Monroe*","email":"Animalhospitalwm@gmail.com","issues":{"Credit / Refund":["7/9/24 Pimo 5mg 300ct received today, please credit clinic."]}},{"clinic":"OZARK ANIMAL HOSPITAL","email":"ozarkanimalhosp@centurytel.net","issues":{"Wrong Item Sent":["8/22/25 Dr Holt called me back and said he receive 100ct of the doxy on inv-87955 and wanted a 300ct so I told him I would fix the price on the 200ct to match the 300ct pricing"]}},{"clinic":"Hearts Alive Village Animal Clinic","email":"ty@heartsalivevillage.org","issues":{"Damaged / Broken":["10/17/23 Per Jonathan replacing INV-41939 Furosemide leaking during shipping"],"Order Delay / Not Shipped":["6/9/26 called clinic spoke with Xochitl about the metro delay"]}},{"clinic":"Broussard Veterinary Clinic","email":"broussardvet@hotmail.com","issues":{"Shipped to Wrong Address":["Invoice # 85513 written for wrong clinic in Lafayette."]}},{"clinic":"EUBANKS ANIMAL CLINIC","email":"eubanksanimalclinic@gmail.com","issues":{"Damaged / Broken":["5mg per click pens have turned to liquid — pens are liquid and not dosing correct."]}},{"clinic":"MAIN STREET VETERINARY CLINIC*","email":"msvcinvoices@gmail.com","issues":{"Order Delay / Not Shipped":["Taylor called looking for cyclo from 7/10, it was finally delivered on 7/24/25. She asked we send a call tag as we had already sent a replacement."]}},{"clinic":"LAFAYETTE VETERINARY CARE CENTER","email":"inventory@lafayettevets.com","issues":{"Damaged / Broken":["7/28/25 per Mike email One of the opth in this order was faulty please replace one INV-84593"],"Order Delay / Not Shipped":["10/5/23 clinic paid for overnight shipping but I did not put on invoice 41699 so it was not shipped overnight"]}},{"clinic":"Jonesboro Animal Clinic","email":"Jonesboroanimalclinic@gmail.com","issues":{"Missing / Shorted":["Per Salsbury, missing pkg, delivered 11/..."]}}];
+
+let activeFilter = null;
+let searchTerm = '';
+let sortMode = 'issues';
+
+// Build category chips
+const summaryBar = document.getElementById('summaryBar');
+const labelEl = summaryBar.querySelector('label');
+
+CATS.forEach((cat, i) => {
+  const chip = document.createElement('span');
+  chip.className = `cat-chip chip${i}`;
+  chip.dataset.cat = cat;
+  chip.innerHTML = `${cat} <span>${COUNTS[cat] || 0}</span>`;
+  chip.addEventListener('click', () => {
+    if (activeFilter === cat) {
+      activeFilter = null;
+      chip.classList.remove('active');
+    } else {
+      document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+      activeFilter = cat;
+      chip.classList.add('active');
+    }
+    render();
+  });
+  summaryBar.appendChild(chip);
+});
+
+const clearBtn = document.createElement('span');
+clearBtn.textContent = '✕ Clear';
+clearBtn.style.cssText = 'cursor:pointer;font-size:12px;color:#888;padding:5px 10px;';
+clearBtn.addEventListener('click', () => {
+  activeFilter = null;
+  document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+  render();
+});
+summaryBar.appendChild(clearBtn);
+
+document.getElementById('searchBox').addEventListener('input', e => {
+  searchTerm = e.target.value.toLowerCase();
+  render();
+});
+
+document.getElementById('sortSelect').addEventListener('change', e => {
+  sortMode = e.target.value;
+  render();
+});
+
+function catIndex(cat) { return CATS.indexOf(cat); }
+
+function render() {
+  let data = RAW.filter(item => {
+    if (activeFilter && !item.issues[activeFilter]) return false;
+    if (searchTerm && !item.clinic.toLowerCase().includes(searchTerm) && !item.email.toLowerCase().includes(searchTerm)) return false;
+    return true;
+  });
+
+  if (sortMode === 'issues') {
+    data = data.sort((a, b) => Object.keys(b.issues).length - Object.keys(a.issues).length);
+  } else {
+    data = data.sort((a, b) => a.clinic.localeCompare(b.clinic));
+  }
+
+  document.getElementById('visibleCount').textContent = `${data.length} clinics`;
+  document.getElementById('resultCount').textContent = `Showing ${data.length} clinics`;
+
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+
+  data.forEach(item => {
+    const issueCats = Object.keys(item.issues);
+    const snippets = activeFilter
+      ? (item.issues[activeFilter] || [])
+      : issueCats.flatMap(c => (item.issues[c] || []).slice(0,1));
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <div class="clinic-name">${item.clinic}</div>
+        <div class="clinic-email">${item.email || '—'}</div>
+      </td>
+      <td>
+        <div class="cat-tags">
+          ${issueCats.map(c => `<span class="tag c${catIndex(c)}">${c}</span>`).join('')}
+        </div>
+        ${snippets.map(s => `<div class="snippet">${escHtml(s)}</div>`).join('')}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+render();
+</script>
+</body>
+</html>
